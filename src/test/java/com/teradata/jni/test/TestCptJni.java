@@ -7,7 +7,7 @@ public class TestCptJni {
     @Test
     public void TestGetFileNameFromPath() {
 
-        String path = "/libTeradataCptJni.dll";
+        String path = "/bak/libTeradataCptJni.dll";
 
         String fileName = path.substring(path.lastIndexOf('/')+1);
 
@@ -20,4 +20,9 @@ public class TestCptJni {
         System.out.println("suffix:" + suffix);
     }
 
+    @Test
+    public void TestJniVersion() {
+
+        
+    }
 }

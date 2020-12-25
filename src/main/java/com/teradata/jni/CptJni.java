@@ -22,51 +22,51 @@ package com.teradata.jni;
 
 import java.io.*;
 
-public class CptJni
-{
+public class CptJni {
 
-    public CptJni()
-    {
+    public CptJni() {
     }
 
-    public static String encrypt(String s, long l, byte byte0)
-            throws UnsupportedEncodingException
-    {
-        return new String(encrypt(s.getBytes("ISO-8859-1"), l, byte0), "ISO-8859-1");
+    public static String encrypt(String s, long key, byte mod)
+            throws UnsupportedEncodingException {
+        return new String(encrypt(s.getBytes("ISO-8859-1"), key, mod), "ISO-8859-1");
     }
 
-    public static String decrypt(String s, long l, byte byte0)
-            throws UnsupportedEncodingException
-    {
-        return new String(decrypt(s.getBytes("ISO-8859-1"), l, byte0), "ISO-8859-1");
+    public static String decrypt(String s, long key, byte mod)
+            throws UnsupportedEncodingException {
+        return new String(decrypt(s.getBytes("ISO-8859-1"), key, mod), "ISO-8859-1");
     }
 
-    public static native byte[] encrypt(byte abyte0[], long l, byte byte0);
+    public static native byte[] encrypt(byte abyte0[], long key, byte mod);
 
-    public static native byte[] decrypt(byte abyte0[], long l, byte byte0);
+    public static native byte[] decrypt(byte abyte0[], long key, byte mod);
 
-    static
-    {
-        try
-        {
+
+    public static String multiSubPolicyEncrypt(String s, Policy policy, long key, byte mod)
+            throws UnsupportedEncodingException {
+        return new String(multiSubPolicyEncrypt(s.getBytes("ISO-8859-1"), policy, key, mod), "ISO-8859-1");
+    }
+
+    public static String multiSubPolicyDecrypt(String s, Policy policy, long key, byte mod)
+            throws UnsupportedEncodingException {
+        return new String(multiSubPolicyDecrypt(s.getBytes("ISO-8859-1"), policy, key, mod), "ISO-8859-1");
+    }
+
+    public static native byte[] multiSubPolicyEncrypt(byte abyte0[], Policy policy, long key, byte mod);
+
+    public static native byte[] multiSubPolicyDecrypt(byte abyte0[], Policy policy, long key, byte mod);
+
+    static {
+        try {
             String osType = System.getProperty("os.name");
             /*System.out.println("library path:"+System.getProperty("java.library.path"));
             System.out.println("-------------------------");
             System.out.println(System.getProperties());*/
 
+
             try {
-                String libName = "/";
-                if (osType.equals("Linux")) {
-                    libName = "/libTeradataCptJni.so";
-                } else if (osType.startsWith("Windows")) {
-                    libName = "/libTeradataCptJni.dll";
-                } else {
-                    throw new RuntimeException("unknown os.name:" + osType);
-                }
-                load(libName);
-            } catch (IOException e) {
                 //System.err.println("jar load failed!!!!!!!!!!!!!!!!!!");
-                if (osType.equals("Linux")){
+                if (osType.equals("Linux")) {
                     // 需要设置环境变量 .bashrc
                     // export LD_LIBRARY_PATH='/home/etl/iProject/TeradataCptJni/linux-amd64':${LD_LIBRARY_PATH}
                     // export PATH=${JAVA_HOME}/bin:${LD_LIBRARY_PATH}:${PATH}
@@ -77,32 +77,44 @@ public class CptJni
                 } else {
                     throw new RuntimeException("unknown os.name:" + osType);
                 }
+            } catch (RuntimeException e) {
+                String libName = "/";
+                if (osType.equals("Linux")) {
+                    libName = "/libTeradataCptJni.so";
+                } else if (osType.startsWith("Windows")) {
+                    libName = "/bak/libTeradataCptJni.dll";
+                } else {
+                    throw new RuntimeException("unknown os.name:" + osType);
+                }
+                try {
+                    load(libName);
+                } catch (IOException ioException) {
+                    ioException.printStackTrace();
+                }
             }
             //System.load("D:\\iProject\\teradatacpt\\lib\\libTeradataCptJni.dll");
-        }
-        catch (UnsatisfiedLinkError unsatisfiedlinkerror)
-        {
+        } catch (UnsatisfiedLinkError unsatisfiedlinkerror) {
             System.err.println("Cannot load libTeradataCptJni library:\n " + unsatisfiedlinkerror.toString());
         }
     }
 
     public static void load(String path) throws IOException {
-        if(!path.startsWith("/")){
+        if (!path.startsWith("/")) {
             throw new IllegalArgumentException("Wrong path :" + path);
         }
         //如果存在本文件，直接加载，并返回
         File inputFile = new File(path);
-        if(inputFile.exists() && inputFile.isFile()){
+        if (inputFile.exists() && inputFile.isFile()) {
             System.load(path);
             return;
         }
 
-        String fileName = path.substring(path.lastIndexOf('/')+1);
-        if(fileName == null || fileName.isEmpty()){
+        String fileName = path.substring(path.lastIndexOf('/') + 1);
+        if (fileName == null || fileName.isEmpty()) {
             throw new IllegalArgumentException("The fileName should not be null");
         }
 
-        String prefix = fileName.substring(0, fileName.lastIndexOf(".")-1);
+        String prefix = fileName.substring(0, fileName.lastIndexOf(".") - 1);
         String suffix = fileName.substring(fileName.lastIndexOf("."));
 
         //创建临时文件，注意删除
@@ -127,7 +139,7 @@ public class CptJni
         }
 
         try {
-            while((len = in.read(buff)) != -1){
+            while ((len = in.read(buff)) != -1) {
                 out.write(buff, 0, len);
             }
         } finally {
@@ -146,7 +158,7 @@ public class CptJni
 
     public static void main(String[] args) {
         long key = 123;
-        System.out.println("==================== 数字加密 =====================");
+        /*System.out.println("==================== 数字加密 =====================");
         byte mode = 1; // 数字加密
         String originText = "foxmindTeradataBonc123";
 
@@ -188,6 +200,39 @@ public class CptJni
 
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
+        }*/
+
+        System.out.println("==================== 数字加密 =====================");
+        byte mode = 1; // 数字加密
+        String originText = "foxmind_1234_text_139";
+
+        try {
+            System.out.println("origin:" + originText);
+
+            SubPolicy subPolicy1 = new SubPolicy();
+            subPolicy1.position = 8;
+            subPolicy1.length = 4;
+            SubPolicy subPolicy2 = new SubPolicy();
+            subPolicy2.position = 18;
+            subPolicy2.length = 3;
+
+            SubPolicy[] subPolicies = new SubPolicy[]{subPolicy1, subPolicy2};
+
+
+            Policy policy = new Policy();
+            policy.sub_policy_num = 2;
+            policy.sub_policy = subPolicies;
+
+
+            String encryptText = multiSubPolicyEncrypt(originText, policy, key, mode);
+            System.out.println("multiSubPolicyEncrypt:" + encryptText);
+            String decryptText = multiSubPolicyDecrypt(encryptText, policy, key, mode);
+            System.out.println("multiSubPolicyDecrypt:" + decryptText);
+
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
         }
+
+
     }
 }

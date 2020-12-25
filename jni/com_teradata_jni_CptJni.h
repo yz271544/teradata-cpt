@@ -23,6 +23,22 @@ JNIEXPORT jbyteArray JNICALL Java_com_teradata_jni_CptJni_encrypt
 JNIEXPORT jbyteArray JNICALL Java_com_teradata_jni_CptJni_decrypt
   (JNIEnv *, jclass, jbyteArray, jlong, jbyte);
 
+/*
+ * Class:     com_teradata_jni_CptJni
+ * Method:    multiSubPolicyEncrypt
+ * Signature: ([BLcom/teradata/jni/Policy;JB)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_teradata_jni_CptJni_multiSubPolicyEncrypt
+  (JNIEnv *, jclass, jbyteArray, jobject, jlong, jbyte);
+
+/*
+ * Class:     com_teradata_jni_CptJni
+ * Method:    multiSubPolicyDecrypt
+ * Signature: ([BLcom/teradata/jni/Policy;JB)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_teradata_jni_CptJni_multiSubPolicyDecrypt
+  (JNIEnv *, jclass, jbyteArray, jobject, jlong, jbyte);
+
 #ifdef __cplusplus
 }
 #endif
