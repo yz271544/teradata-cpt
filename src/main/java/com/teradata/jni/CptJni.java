@@ -57,45 +57,39 @@ public class CptJni {
     public static native byte[] multiSubPolicyDecrypt(byte abyte0[], Policy policy, long key, byte mod);
 
     static {
+        String osType = System.getProperty("os.name");
         try {
-            String osType = System.getProperty("os.name");
             /*System.out.println("library path:"+System.getProperty("java.library.path"));
             System.out.println("-------------------------");
             System.out.println(System.getProperties());*/
-
-
-            try {
-                //System.err.println("jar load failed!!!!!!!!!!!!!!!!!!");
-                if (osType.equals("Linux")) {
-                    // 需要设置环境变量 .bashrc
-                    // export LD_LIBRARY_PATH='/home/etl/iProject/TeradataCptJni/linux-amd64':${LD_LIBRARY_PATH}
-                    // export PATH=${JAVA_HOME}/bin:${LD_LIBRARY_PATH}:${PATH}
-                    System.loadLibrary("TeradataCptJni");
-                } else if (osType.startsWith("Windows")) {
-                    // 需要设置环境变量PATH=${PATH}\;D:\iProject\teradatacpt\lib
-                    System.loadLibrary("libTeradataCptJni");
-                } else {
-                    throw new RuntimeException("unknown os.name:" + osType);
-                }
-            } catch (RuntimeException e) {
-                String libName = "/";
-                if (osType.equals("Linux")) {
-                    libName = "/libTeradataCptJni.so";
-                } else if (osType.startsWith("Windows")) {
-                    libName = "/bak/libTeradataCptJni.dll";
-                } else {
-                    throw new RuntimeException("unknown os.name:" + osType);
-                }
-                try {
-                    load(libName);
-                } catch (IOException ioException) {
-                    ioException.printStackTrace();
-                }
+            //System.err.println("jar load failed!!!!!!!!!!!!!!!!!!");
+            if (osType.equals("Linux")) {
+                // 需要设置环境变量 .bashrc
+                // export LD_LIBRARY_PATH='/home/etl/iProject/TeradataCptJni/linux-amd64':${LD_LIBRARY_PATH}
+                // export PATH=${JAVA_HOME}/bin:${LD_LIBRARY_PATH}:${PATH}
+                System.loadLibrary("TeradataCptJni");
+            } else if (osType.startsWith("Windows")) {
+                // 需要设置环境变量PATH=${PATH}\;D:\iProject\teradatacpt\lib
+                System.loadLibrary("libTeradataCptJni");
+            } else {
+                throw new RuntimeException("unknown os.name:" + osType);
             }
-            //System.load("D:\\iProject\\teradatacpt\\lib\\libTeradataCptJni.dll");
         } catch (UnsatisfiedLinkError unsatisfiedlinkerror) {
-            System.err.println("Cannot load libTeradataCptJni library:\n " + unsatisfiedlinkerror.toString());
+            String libName = "/";
+            if (osType.equals("Linux")) {
+                libName = "/libTeradataCptJni.so";
+            } else if (osType.startsWith("Windows")) {
+                libName = "/libTeradataCptJni.dll";
+            } else {
+                throw new RuntimeException("unknown os.name:" + osType);
+            }
+            try {
+                load(libName);
+            } catch (IOException ioException) {
+                System.err.println("Cannot load libTeradataCptJni library:\n " + unsatisfiedlinkerror.toString());
+            }
         }
+        //System.load("D:\\iProject\\teradatacpt\\lib\\libTeradataCptJni.dll");
     }
 
     public static void load(String path) throws IOException {
