@@ -58,6 +58,9 @@ public class CptJni {
 
     static {
         String osType = System.getProperty("os.name");
+        String osVersion = System.getProperty("sun.os.patch.level");//得到操作系统版本
+        String cpuArch = System.getProperty("sun.cpu.isalist");//得到CPU系统信息
+        System.out.println("osType:" + osType + " osVersion:" + osVersion + " cpuArch:" + cpuArch);
         try {
             /*System.out.println("library path:"+System.getProperty("java.library.path"));
             System.out.println("-------------------------");
@@ -67,7 +70,13 @@ public class CptJni {
                 // 需要设置环境变量 .bashrc
                 // export LD_LIBRARY_PATH='/home/etl/iProject/TeradataCptJni/linux-amd64':${LD_LIBRARY_PATH}
                 // export PATH=${JAVA_HOME}/bin:${LD_LIBRARY_PATH}:${PATH}
-                System.loadLibrary("TeradataCptJni");
+                if (cpuArch.equals("amd64")) {
+                    System.loadLibrary("TeradataCptJniAmd64");
+                } else if (cpuArch.equals("arm64")) {
+                    System.loadLibrary("TeradataCptJniArm64");
+                } else {
+                    throw new RuntimeException("unknown cpu.isalist:" + cpuArch);
+                }
             } else if (osType.startsWith("Windows")) {
                 // 需要设置环境变量PATH=${PATH}\;D:\iProject\teradatacpt\lib
                 System.loadLibrary("libTeradataCptJni");
@@ -77,7 +86,13 @@ public class CptJni {
         } catch (UnsatisfiedLinkError unsatisfiedlinkerror) {
             String libName = "/";
             if (osType.equals("Linux")) {
-                libName = "/libTeradataCptJni.so";
+                if (cpuArch.equals("amd64")) {
+                    libName = "/libTeradataCptJniAmd64.so";
+                } else if (cpuArch.equals("arm64")) {
+                    libName = "/libTeradataCptJniArm64.so";
+                } else {
+                    throw new RuntimeException("unknown cpu.isalist:" + cpuArch);
+                }
             } else if (osType.startsWith("Windows")) {
                 libName = "/libTeradataCptJni.dll";
             } else {
