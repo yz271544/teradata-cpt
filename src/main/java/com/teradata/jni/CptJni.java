@@ -57,16 +57,21 @@ public class CptJni {
     public static native byte[] multiSubPolicyDecrypt(byte abyte0[], Policy policy, long key, byte mod);
 
     static {
+        System.getProperties().forEach((k, v) -> System.out.println(k + " --> " + v));
+
         String osType = System.getProperty("os.name");
         String osVersion = System.getProperty("sun.os.patch.level");//得到操作系统版本
-        String cpuArch = System.getProperty("sun.cpu.isalist");//得到CPU系统信息
-        System.out.println("osType:" + osType + " osVersion:" + osVersion + " cpuArch:" + cpuArch);
+        String cpuArch = "";
+
         try {
             /*System.out.println("library path:"+System.getProperty("java.library.path"));
             System.out.println("-------------------------");
             System.out.println(System.getProperties());*/
             //System.err.println("jar load failed!!!!!!!!!!!!!!!!!!");
+
             if (osType.equals("Linux")) {
+                cpuArch = System.getProperty("os.arch");//得到CPU系统信息
+                System.out.println("osType:" + osType + " osVersion:" + osVersion + " cpuArch:" + cpuArch);
                 // 需要设置环境变量 .bashrc
                 // export LD_LIBRARY_PATH='/home/etl/iProject/TeradataCptJni/linux-amd64':${LD_LIBRARY_PATH}
                 // export PATH=${JAVA_HOME}/bin:${LD_LIBRARY_PATH}:${PATH}
@@ -78,6 +83,8 @@ public class CptJni {
                     throw new RuntimeException("unknown cpu.isalist:" + cpuArch);
                 }
             } else if (osType.startsWith("Windows")) {
+                cpuArch = System.getProperty("sun.cpu.isalist");//得到CPU系统信息
+                System.out.println("osType:" + osType + " osVersion:" + osVersion + " cpuArch:" + cpuArch);
                 // 需要设置环境变量PATH=${PATH}\;D:\iProject\teradatacpt\lib
                 System.loadLibrary("libTeradataCptJni");
             } else {
