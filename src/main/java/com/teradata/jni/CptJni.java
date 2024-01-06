@@ -28,14 +28,22 @@ public class CptJni {
     public CptJni() {
     }
 
-    public static String encrypt(String s, long key, byte mod)
+    public static String encrypt(String s, long key, byte mod, boolean containCn)
             throws UnsupportedEncodingException {
-        return new String(encrypt(s.getBytes(StandardCharsets.UTF_16), key, mod), StandardCharsets.ISO_8859_1);
+        if (containCn) {
+            return new String(encrypt(s.getBytes(StandardCharsets.UTF_16), key, mod), StandardCharsets.ISO_8859_1);
+        } else {
+            return new String(encrypt(s.getBytes(StandardCharsets.ISO_8859_1), key, mod), StandardCharsets.ISO_8859_1);
+        }
     }
 
-    public static String decrypt(String s, long key, byte mod)
+    public static String decrypt(String s, long key, byte mod, boolean containCn)
             throws UnsupportedEncodingException {
-        return new String(decrypt(s.getBytes(StandardCharsets.ISO_8859_1), key, mod), StandardCharsets.UTF_16);
+        if (containCn) {
+            return new String(decrypt(s.getBytes(StandardCharsets.ISO_8859_1), key, mod), StandardCharsets.UTF_16);
+        } else {
+            return new String(decrypt(s.getBytes(StandardCharsets.ISO_8859_1), key, mod), StandardCharsets.ISO_8859_1);
+        }
     }
 
     public static native byte[] encrypt(byte abyte0[], long key, byte mod);
@@ -43,14 +51,22 @@ public class CptJni {
     public static native byte[] decrypt(byte abyte0[], long key, byte mod);
 
 
-    public static String multiSubPolicyEncrypt(String s, Policy policy, long key, byte mod)
+    public static String multiSubPolicyEncrypt(String s, Policy policy, long key, byte mod, boolean containCn)
             throws UnsupportedEncodingException {
-        return new String(multiSubPolicyEncrypt(s.getBytes(StandardCharsets.UTF_16), policy, key, mod), StandardCharsets.ISO_8859_1);
+        if (containCn) {
+            return new String(multiSubPolicyEncrypt(s.getBytes(StandardCharsets.UTF_16), policy, key, mod), StandardCharsets.ISO_8859_1);
+        } else {
+            return new String(multiSubPolicyEncrypt(s.getBytes(StandardCharsets.ISO_8859_1), policy, key, mod), StandardCharsets.ISO_8859_1);
+        }
     }
 
-    public static String multiSubPolicyDecrypt(String s, Policy policy, long key, byte mod)
+    public static String multiSubPolicyDecrypt(String s, Policy policy, long key, byte mod, boolean containCn)
             throws UnsupportedEncodingException {
-        return new String(multiSubPolicyDecrypt(s.getBytes(StandardCharsets.ISO_8859_1), policy, key, mod), StandardCharsets.UTF_16);
+        if (containCn) {
+            return new String(multiSubPolicyDecrypt(s.getBytes(StandardCharsets.ISO_8859_1), policy, key, mod), StandardCharsets.UTF_16);
+        } else {
+            return new String(multiSubPolicyDecrypt(s.getBytes(StandardCharsets.ISO_8859_1), policy, key, mod), StandardCharsets.ISO_8859_1);
+        }
     }
 
     //public static native byte[] multiSubPolicyEncrypt(String abyte0, Policy policy, long key, byte mod);
@@ -182,43 +198,43 @@ public class CptJni {
 
         try {
             System.out.println("origin:" + originText);
-            String encryptText = encrypt(originText, key, mode);
+            String encryptText = encrypt(originText, key, mode, false);
             System.out.println("encrypt:" + encryptText);
-            String decryptText = decrypt(encryptText, key, mode);
+            String decryptText = decrypt(encryptText, key, mode, false);
             System.out.println("decrypt:" + decryptText);
 
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
 
-//        System.out.println("==================== 字符串加密 =====================");
-//        mode = 0; // 字符串加密
-//        originText = "foxmindTeradataBonc123";
-//        try {
-//            System.out.println("origin:" + originText);
-//            String encryptText = encrypt(originText, key, mode);
-//            System.out.println("encrypt:" + encryptText);
-//            String decryptText = decrypt(encryptText, key, mode);
-//            System.out.println("decrypt:" + decryptText);
-//
-//        } catch (UnsupportedEncodingException e) {
-//            e.printStackTrace();
-//        }
+        System.out.println("==================== 字符串加密 =====================");
+        mode = 0; // 字符串加密
+        originText = "foxmindTeradataBonc123";
+        try {
+            System.out.println("origin:" + originText);
+            String encryptText = encrypt(originText, key, mode, false);
+            System.out.println("encrypt:" + encryptText);
+            String decryptText = decrypt(encryptText, key, mode, false);
+            System.out.println("decrypt:" + decryptText);
+
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
 
 
-//        System.out.println("==================== 可见单字节加密 =====================");
-//        mode = 2; // 可见单字节加密
-//        originText = "foxmindTeradataBonc123";
-//        try {
-//            System.out.println("origin:" + originText);
-//            String encryptText = encrypt(originText, key, mode);
-//            System.out.println("encrypt:" + encryptText);
-//            String decryptText = decrypt(encryptText, key, mode);
-//            System.out.println("decrypt:" + decryptText);
-//
-//        } catch (UnsupportedEncodingException e) {
-//            e.printStackTrace();
-//        }
+        System.out.println("==================== 可见单字节加密 =====================");
+        mode = 2; // 可见单字节加密
+        originText = "foxmindTeradataBonc123";
+        try {
+            System.out.println("origin:" + originText);
+            String encryptText = encrypt(originText, key, mode, false);
+            System.out.println("encrypt:" + encryptText);
+            String decryptText = decrypt(encryptText, key, mode, false);
+            System.out.println("decrypt:" + decryptText);
+
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
 
         System.out.println("==================== 中文字符串加密 =====================");
         mode = 0; // 字符串加密
@@ -245,26 +261,26 @@ public class CptJni {
             System.out.println("decrypt:" + deUtf16Bytes);
             System.out.printf("解密后deUtf16Bytes：");printString(deUtf16Bytes);
 
-//            System.out.println("deUtf16Bytes.getBytes:" + deUtf16Bytes.getBytes());
-//
-//            String utf8 = new String(deBytes, StandardCharsets.UTF_8);
-//            System.out.println("decrypt_utf8:" + utf8);
-//            System.out.printf("解密后utf8：");printString(utf8);
-//
-//            byte[] utf8BytesFromGBKString = getUTF8BytesFromGBKString(deUtf16Bytes);
-//            System.out.printf("解密后utf8Bytes：");printByteArray(utf8BytesFromGBKString);
-//            String s = new String(utf8BytesFromGBKString, "UTF-8");
-//            System.out.println(s);
+            System.out.println("deUtf16Bytes.getBytes:" + deUtf16Bytes.getBytes());
 
-//            String decryptText = decrypt(encryptText, key, mode);
+            String utf8 = new String(deBytes, StandardCharsets.UTF_8);
+            System.out.println("decrypt_utf8:" + utf8);
+            System.out.printf("解密后utf8：");printString(utf8);
+
+            byte[] utf8BytesFromGBKString = getUTF8BytesFromGBKString(deUtf16Bytes);
+            System.out.printf("解密后utf8Bytes：");printByteArray(utf8BytesFromGBKString);
+            String s = new String(utf8BytesFromGBKString, "UTF-8");
+            System.out.println(s);
+
+//            String decryptText = decrypt(encryptText, key, mode, true);
 //            System.out.println("decrypt:" + decryptText);
 
-//            System.out.println("-------------------- 2 -------------------");
+            System.out.println("-------------------- 2 -------------------");
             originText = "胡正阳";
             System.out.println("加密myName:" + originText);
-            String enMyName = encrypt(originText, key, mode);
+            String enMyName = encrypt(originText, key, mode, true);
             System.out.println("en my name:" + enMyName);
-            String deMyName = decrypt(enMyName, key, mode);
+            String deMyName = decrypt(enMyName, key, mode, true);
             System.out.println("de my name:" + deMyName);
 
         } catch (Exception e) {
@@ -273,138 +289,138 @@ public class CptJni {
 
         System.out.println("#######################################################");
 
-//        System.out.println("==================== 数字加密 =====================");
-//        mode = 1; // 数字加密
-//        originText = "foxmind_1234_text_139";
-//
-//        try {
-//            System.out.println("origin:" + originText);
-//
-//            SubPolicy subPolicy1 = new SubPolicy();
-//            subPolicy1.position = 8;
-//            subPolicy1.length = 4;
-//            SubPolicy subPolicy2 = new SubPolicy();
-//            subPolicy2.position = 18;
-//            subPolicy2.length = 3;
-//
-//            SubPolicy[] subPolicies = new SubPolicy[]{subPolicy1, subPolicy2};
-//
-//
-//            Policy policy = new Policy();
-//            policy.sub_policy_num = 2;
-//            policy.sub_policy = subPolicies;
-//
-//
-//            String encryptText = multiSubPolicyEncrypt(originText, policy, key, mode);
-//            System.out.println("multiSubPolicyEncrypt:" + encryptText);
-//            String decryptText = multiSubPolicyDecrypt(encryptText, policy, key, mode);
-//            System.out.println("multiSubPolicyDecrypt:" + decryptText);
-//
-//        } catch (UnsupportedEncodingException e) {
-//            e.printStackTrace();
-//        }
-//
-//        System.out.println("==================== 字符串加密 =====================");
-//        mode = 0; // 字符串加密
-//        originText = "foxmindTeradataBonc123";
-//        try {
-//            System.out.println("origin:" + originText);
-//
-//            SubPolicy subPolicy1 = new SubPolicy();
-//            subPolicy1.position = 7;
-//            subPolicy1.length = 8;
-//            SubPolicy subPolicy2 = new SubPolicy();
-//            subPolicy2.position = 15;
-//            subPolicy2.length = 4;
-//
-//            SubPolicy[] subPolicies = new SubPolicy[]{subPolicy1, subPolicy2};
-//
-//
-//            Policy policy = new Policy();
-//            policy.sub_policy_num = 2;
-//            policy.sub_policy = subPolicies;
-//
-//
-//            String encryptText = multiSubPolicyEncrypt(originText, policy, key, mode);
-//            System.out.println("multiSubPolicyEncrypt:" + encryptText);
-//            String decryptText = multiSubPolicyDecrypt(encryptText, policy, key, mode);
-//            System.out.println("multiSubPolicyDecrypt:" + decryptText);
-//
-//        } catch (UnsupportedEncodingException e) {
-//            e.printStackTrace();
-//        }
-//
-//
-//        System.out.println("==================== 可见单字节加密 =====================");
-//        mode = 2; // 可见单字节加密
-//        originText = "foxmindTeradataBonc123";
-//        try {
-//            System.out.println("origin:" + originText);
-//
-//            SubPolicy subPolicy1 = new SubPolicy();
-//            subPolicy1.position = 7;
-//            subPolicy1.length = 8;
-//            SubPolicy subPolicy2 = new SubPolicy();
-//            subPolicy2.position = 15;
-//            subPolicy2.length = 4;
-//
-//            SubPolicy[] subPolicies = new SubPolicy[]{subPolicy1, subPolicy2};
+        System.out.println("==================== 数字加密 =====================");
+        mode = 1; // 数字加密
+        originText = "foxmind_1234_text_139";
+
+        try {
+            System.out.println("origin:" + originText);
+
+            SubPolicy subPolicy1 = new SubPolicy();
+            subPolicy1.position = 8;
+            subPolicy1.length = 4;
+            SubPolicy subPolicy2 = new SubPolicy();
+            subPolicy2.position = 18;
+            subPolicy2.length = 3;
+
+            SubPolicy[] subPolicies = new SubPolicy[]{subPolicy1, subPolicy2};
+
+
+            Policy policy = new Policy();
+            policy.sub_policy_num = 2;
+            policy.sub_policy = subPolicies;
+
+
+            String encryptText = multiSubPolicyEncrypt(originText, policy, key, mode, false);
+            System.out.println("multiSubPolicyEncrypt:" + encryptText);
+            String decryptText = multiSubPolicyDecrypt(encryptText, policy, key, mode, false);
+            System.out.println("multiSubPolicyDecrypt:" + decryptText);
+
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("==================== 字符串加密 =====================");
+        mode = 0; // 字符串加密
+        originText = "foxmindTeradataBonc123";
+        try {
+            System.out.println("origin:" + originText);
+
+            SubPolicy subPolicy1 = new SubPolicy();
+            subPolicy1.position = 7;
+            subPolicy1.length = 8;
+            SubPolicy subPolicy2 = new SubPolicy();
+            subPolicy2.position = 15;
+            subPolicy2.length = 4;
+
+            SubPolicy[] subPolicies = new SubPolicy[]{subPolicy1, subPolicy2};
+
+
+            Policy policy = new Policy();
+            policy.sub_policy_num = 2;
+            policy.sub_policy = subPolicies;
+
+
+            String encryptText = multiSubPolicyEncrypt(originText, policy, key, mode, false);
+            System.out.println("multiSubPolicyEncrypt:" + encryptText);
+            String decryptText = multiSubPolicyDecrypt(encryptText, policy, key, mode, false);
+            System.out.println("multiSubPolicyDecrypt:" + decryptText);
+
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
 //
 //
-//            Policy policy = new Policy();
-//            policy.sub_policy_num = 2;
-//            policy.sub_policy = subPolicies;
-//
-//
-//            String encryptText = multiSubPolicyEncrypt(originText, policy, key, mode);
-//            System.out.println("multiSubPolicyEncrypt:" + encryptText);
-//            String decryptText = multiSubPolicyDecrypt(encryptText, policy, key, mode);
-//            System.out.println("multiSubPolicyDecrypt:" + decryptText);
-//
-//        } catch (UnsupportedEncodingException e) {
-//            e.printStackTrace();
-//        }
-//
-//
-//        System.out.println("==================== 中文字符串加密 =====================");
-//        mode = 0; // 字符串加密
-//        originText = "中文字符串加密";
-//        System.out.printf("Java watch:");printString(originText);
-//        try {
-//            System.out.println("origin:" + originText);
-//
-////            byte[] gb2312s = originText.getBytes("GB2312");
-////            System.out.printf("加密前gb2312：");printByteArray(gb2312s);
-//
-//
-//            SubPolicy subPolicy1 = new SubPolicy();
-//            subPolicy1.position = 2;
-//            subPolicy1.length = 2;
-//            SubPolicy subPolicy2 = new SubPolicy();
-//            subPolicy2.position = 6;
-//            subPolicy2.length = 2;
-//
-//            SubPolicy[] subPolicies = new SubPolicy[]{subPolicy1, subPolicy2};
-//
-//
-//            Policy policy = new Policy();
-//            policy.sub_policy_num = 2;
-//            policy.sub_policy = subPolicies;
-//
-//
-////            byte[] bytes = multiSubPolicyEncrypt(gb2312s, policy, key, mode);
-////            System.out.printf("加密完成后：");printByteArray(bytes);
-////            System.out.println("multiSubPolicyEncrypt:" + new String(bytes));
-//
-//            String encryptText = multiSubPolicyEncrypt(originText, policy, key, mode);
-//            System.out.println("multiSubPolicyEncrypt:" + encryptText);
-//
-//            String decryptText = multiSubPolicyDecrypt(encryptText, policy, key, mode);
-//            System.out.println("multiSubPolicyDecrypt:" + decryptText);
-//
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
+        System.out.println("==================== 可见单字节加密 =====================");
+        mode = 2; // 可见单字节加密
+        originText = "foxmindTeradataBonc123";
+        try {
+            System.out.println("origin:" + originText);
+
+            SubPolicy subPolicy1 = new SubPolicy();
+            subPolicy1.position = 7;
+            subPolicy1.length = 8;
+            SubPolicy subPolicy2 = new SubPolicy();
+            subPolicy2.position = 15;
+            subPolicy2.length = 4;
+
+            SubPolicy[] subPolicies = new SubPolicy[]{subPolicy1, subPolicy2};
+
+
+            Policy policy = new Policy();
+            policy.sub_policy_num = 2;
+            policy.sub_policy = subPolicies;
+
+
+            String encryptText = multiSubPolicyEncrypt(originText, policy, key, mode, false);
+            System.out.println("multiSubPolicyEncrypt:" + encryptText);
+            String decryptText = multiSubPolicyDecrypt(encryptText, policy, key, mode, false);
+            System.out.println("multiSubPolicyDecrypt:" + decryptText);
+
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
+
+        System.out.println("==================== 中文字符串加密 =====================");
+        mode = 0; // 字符串加密
+        originText = "中文字符串加密";
+        System.out.printf("Java watch:");printString(originText);
+        try {
+            System.out.println("origin:" + originText);
+
+//            byte[] gb2312s = originText.getBytes("GB2312");
+//            System.out.printf("加密前gb2312：");printByteArray(gb2312s);
+
+
+            SubPolicy subPolicy1 = new SubPolicy();
+            subPolicy1.position = 2;
+            subPolicy1.length = 2;
+            SubPolicy subPolicy2 = new SubPolicy();
+            subPolicy2.position = 6;
+            subPolicy2.length = 2;
+
+            SubPolicy[] subPolicies = new SubPolicy[]{subPolicy1, subPolicy2};
+
+
+            Policy policy = new Policy();
+            policy.sub_policy_num = 2;
+            policy.sub_policy = subPolicies;
+
+
+//            byte[] bytes = multiSubPolicyEncrypt(gb2312s, policy, key, mode);
+//            System.out.printf("加密完成后：");printByteArray(bytes);
+//            System.out.println("multiSubPolicyEncrypt:" + new String(bytes));
+
+            String encryptText = multiSubPolicyEncrypt(originText, policy, key, mode, true);
+            System.out.println("multiSubPolicyEncrypt:" + encryptText);
+
+            String decryptText = multiSubPolicyDecrypt(encryptText, policy, key, mode, true);
+            System.out.println("multiSubPolicyDecrypt:" + decryptText);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private static void printString(String inStr) {
