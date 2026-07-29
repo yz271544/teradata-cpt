@@ -35,7 +35,7 @@ public class CptChineseTest {
 
     @Test
     public void utf16ChineseStringCompatibilityApiRoundTrips() throws Exception {
-        String source = "胡正阳在太原开发数据加密程序";
+        String source = "胡大美在偷偷地开发数据加密程序";
 
         String encrypted = CptJni.encrypt(source, KEY, (byte) 0, true);
         String decrypted = CptJni.decrypt(encrypted, KEY, (byte) 0, true);
@@ -79,7 +79,7 @@ public class CptChineseTest {
                 sourceBytes, policy, KEY, CptMode.CHAR);
         byte[] decrypted = CptJni.multiSubPolicyDecrypt(
                 encrypted, policy, KEY, CptMode.CHAR);
-
+        assertEquals(sourceBytes.length, encrypted.length);
         assertArrayEquals("姓名前缀不能被修改",
                 prefix.getBytes(StandardCharsets.UTF_8),
                 java.util.Arrays.copyOfRange(encrypted, 0, secretPosition));
