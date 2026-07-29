@@ -13,8 +13,10 @@ public class TestCptJni {
 
         System.out.println(fileName);
 
-        String prefix = fileName.substring(0, fileName.lastIndexOf(".")-1);
+        String prefix = fileName.substring(0, fileName.lastIndexOf("."));
         String suffix = fileName.substring(fileName.lastIndexOf("."));
+
+        org.junit.Assert.assertEquals("libTeradataCptJni", prefix);
 
         System.out.println("prefix:" + prefix);
         System.out.println("suffix:" + suffix);

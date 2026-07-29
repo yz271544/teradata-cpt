@@ -11,7 +11,7 @@
     <properties>
         <fastjson.version>1.2.44</fastjson.version>
         <lombok.version>1.16.18</lombok.version>
-        <junit.version>4.12</junit.version>
+        <junit.version>4.13.2</junit.version>
         <javaassist.version>3.25.0-GA</javaassist.version>
         <guava.version>25.0-jre</guava.version>
     </properties>
@@ -86,7 +86,7 @@
                         <id>make-assembly</id>
                         <phase>package</phase>
                         <goals>
-                            <goal>assembly</goal>
+                            <goal>single</goal>
                         </goals>
                     </execution>
                 </executions>

@@ -50,6 +50,16 @@ public class CptJni {
 
     public static native byte[] decrypt(byte abyte0[], long key, byte mod);
 
+    public static byte[] encrypt(byte[] input, long key, CptMode mode) {
+        requireInputAndMode(input, mode);
+        return encrypt(input, key, mode.value());
+    }
+
+    public static byte[] decrypt(byte[] input, long key, CptMode mode) {
+        requireInputAndMode(input, mode);
+        return decrypt(input, key, mode.value());
+    }
+
 
     public static String multiSubPolicyEncrypt(String s, Policy policy, long key, byte mod, boolean containCn)
             throws UnsupportedEncodingException {
@@ -74,62 +84,53 @@ public class CptJni {
 
     public static native byte[] multiSubPolicyDecrypt(byte abyte0[], Policy policy, long key, byte mod);
 
-    static {
-        //System.getProperties().forEach((k, v) -> System.out.println(k + " --> " + v));
+    public static byte[] multiSubPolicyEncrypt(byte[] input, Policy policy, long key, CptMode mode) {
+        validatePolicyInput(input, policy, mode);
+        return multiSubPolicyEncrypt(input, policy, key, mode.value());
+    }
 
-        String osType = System.getProperty("os.name");
-        String osVersion = System.getProperty("sun.os.patch.level");//得到操作系统版本
-        String cpuArch = "";
+    public static byte[] multiSubPolicyDecrypt(byte[] input, Policy policy, long key, CptMode mode) {
+        validatePolicyInput(input, policy, mode);
+        return multiSubPolicyDecrypt(input, policy, key, mode.value());
+    }
 
-        try {
-            /*System.out.println("library path:"+System.getProperty("java.library.path"));
-            System.out.println("-------------------------");
-            System.out.println(System.getProperties());*/
-            //System.err.println("jar load failed!!!!!!!!!!!!!!!!!!");
-
-            if (osType.equals("Linux")) {
-                cpuArch = System.getProperty("os.arch");//得到CPU系统信息
-                System.out.println("osType:" + osType + " osVersion:" + osVersion + " cpuArch:" + cpuArch);
-                // 需要设置环境变量 .bashrc
-                // export LD_LIBRARY_PATH='/home/etl/iProject/TeradataCptJni/linux-amd64':${LD_LIBRARY_PATH}
-                // export PATH=${JAVA_HOME}/bin:${LD_LIBRARY_PATH}:${PATH}
-                if (cpuArch.equals("amd64")) {
-                    System.loadLibrary("TeradataCptJniAmd64");
-                } else if (cpuArch.equals("arm64")) {
-                    System.loadLibrary("TeradataCptJniArm64");
-                } else {
-                    throw new RuntimeException("unknown cpu.isalist:" + cpuArch);
-                }
-            } else if (osType.startsWith("Windows")) {
-                cpuArch = System.getProperty("sun.cpu.isalist");//得到CPU系统信息
-                System.out.println("osType:" + osType + " osVersion:" + osVersion + " cpuArch:" + cpuArch);
-                // 需要设置环境变量PATH=${PATH}\;D:\iProject\teradatacpt\lib
-                System.loadLibrary("libTeradataCptJni");
-            } else {
-                throw new RuntimeException("unknown os.name:" + osType);
-            }
-        } catch (UnsatisfiedLinkError unsatisfiedlinkerror) {
-            String libName = "/";
-            if (osType.equals("Linux")) {
-                if (cpuArch.equals("amd64")) {
-                    libName = "/libTeradataCptJniAmd64.so";
-                } else if (cpuArch.equals("arm64")) {
-                    libName = "/libTeradataCptJniArm64.so";
-                } else {
-                    throw new RuntimeException("unknown cpu.isalist:" + cpuArch);
-                }
-            } else if (osType.startsWith("Windows")) {
-                libName = "/libTeradataCptJni.dll";
-            } else {
-                throw new RuntimeException("unknown os.name:" + osType);
-            }
-            try {
-                load(libName);
-            } catch (IOException ioException) {
-                System.err.println("Cannot load libTeradataCptJni library:\n " + unsatisfiedlinkerror.toString());
-            }
+    private static void requireInputAndMode(byte[] input, CptMode mode) {
+        if (input == null) {
+            throw new IllegalArgumentException("input must not be null");
         }
-        //System.load("D:\\iProject\\teradatacpt\\lib\\libTeradataCptJni.dll");
+        if (mode == null) {
+            throw new IllegalArgumentException("mode must not be null");
+        }
+    }
+
+    private static void validatePolicyInput(byte[] input, Policy policy, CptMode mode) {
+        requireInputAndMode(input, mode);
+        if (policy == null) {
+            throw new IllegalArgumentException("policy must not be null");
+        }
+        policy.validateForLength(input.length);
+    }
+
+    static {
+        String osType = System.getProperty("os.name");
+        String cpuArch = System.getProperty("os.arch", "");
+        try {
+            if (osType.equals("Linux")) {
+                if (cpuArch.equals("amd64") || cpuArch.equals("x86_64")) {
+                    load("/libTeradataCptJniAmd64.so");
+                } else if (cpuArch.equals("arm64") || cpuArch.equals("aarch64")) {
+                    load("/libTeradataCptJniArm64.so");
+                } else {
+                    throw new IOException("unsupported Linux architecture: " + cpuArch);
+                }
+            } else if (osType.startsWith("Windows")) {
+                load("/libTeradataCptJni.dll");
+            } else {
+                throw new IOException("unsupported operating system: " + osType);
+            }
+        } catch (IOException | UnsatisfiedLinkError error) {
+            throw new ExceptionInInitializerError(error);
+        }
     }
 
     public static void load(String path) throws IOException {
@@ -148,13 +149,12 @@ public class CptJni {
             throw new IllegalArgumentException("The fileName should not be null");
         }
 
-        String prefix = fileName.substring(0, fileName.lastIndexOf(".") - 1);
+        String prefix = fileName.substring(0, fileName.lastIndexOf("."));
         String suffix = fileName.substring(fileName.lastIndexOf("."));
 
         //创建临时文件，注意删除
         File tmp = File.createTempFile(prefix, suffix);
         tmp.deleteOnExit();
-        System.out.println(tmp.getAbsolutePath());
 
         byte[] buff = new byte[1024];
         int len;
