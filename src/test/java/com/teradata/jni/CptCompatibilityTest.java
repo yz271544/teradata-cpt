@@ -1,5 +1,6 @@
 package com.teradata.jni;
 
+import com.teradata.jni.util.HexOutput;
 import org.junit.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -14,6 +15,10 @@ public class CptCompatibilityTest {
     public void digitModeMatchesCReferenceVector() {
         byte[] input = "foxmind_1234_text_139".getBytes(StandardCharsets.ISO_8859_1);
         byte[] encrypted = CptJni.encrypt(input, KEY, CptMode.DIGIT);
+        byte[] decrypted = CptJni.decrypt(encrypted, KEY, CptMode.DIGIT);
+        System.out.println(HexOutput.bytesToHex(input));
+        System.out.println(HexOutput.bytesToHex(encrypted));
+        System.out.println(HexOutput.bytesToHex(decrypted));
         assertEquals("foxmind_8847_text_125",
                 new String(encrypted, StandardCharsets.ISO_8859_1));
         assertArrayEquals(input, CptJni.decrypt(encrypted, KEY, CptMode.DIGIT));
@@ -22,8 +27,10 @@ public class CptCompatibilityTest {
     @Test
     public void multiPolicyMatchesCReferenceVector() {
         byte[] input = "foxmind_1234_text_139".getBytes(StandardCharsets.ISO_8859_1);
+        System.out.println(HexOutput.bytesToHex(input));
         Policy policy = Policy.of(new SubPolicy(8, 4), new SubPolicy(18, 3));
         byte[] encrypted = CptJni.multiSubPolicyEncrypt(input, policy, KEY, CptMode.DIGIT);
+        System.out.println(HexOutput.bytesToHex(encrypted));
         assertEquals("foxmind_8847_text_125",
                 new String(encrypted, StandardCharsets.ISO_8859_1));
         assertArrayEquals(input,

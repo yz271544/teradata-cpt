@@ -1,5 +1,6 @@
 package com.teradata.jni;
 
+import com.teradata.jni.util.HexOutput;
 import org.junit.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -23,7 +24,9 @@ public class CptChineseTest {
 
         byte[] encrypted = CptJni.encrypt(sourceBytes, KEY, CptMode.CHAR);
         byte[] decrypted = CptJni.decrypt(encrypted, KEY, CptMode.CHAR);
-
+        System.out.println(HexOutput.bytesToHex(sourceBytes));
+        System.out.printf("%s -> %s\n", HexOutput.bytesToHex(encrypted), new String(encrypted, StandardCharsets.UTF_8));
+        System.out.printf("%s -> %s\n", HexOutput.bytesToHex(decrypted), new String(decrypted, StandardCharsets.UTF_8));
         assertEquals("CHAR 模式必须保持 UTF-8 字节长度不变",
                 sourceBytes.length, encrypted.length);
         assertFalse("中文 UTF-8 字节加密后不应与原文完全相同",
