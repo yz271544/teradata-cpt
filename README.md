@@ -15,6 +15,9 @@ Teradata CPT 是面向数据仓库、Hive 和批量数据处理平台的字段�
 - C 核心接口和 Java `byte[]` 接口均支持输入中包含 `0x00`；
 - Java 层提供类型安全的 `CptMode`、`Policy` 和 `SubPolicy` API；
 - JAR 可携带平台原生库，并在运行时自动提取和加载；
+- 提供 UTF-8 友好的 String/byte API（`encryptUtf8` / `encryptAsUtf8Bytes` / `encryptAsBase64`），可直接适配 Hive / Doris / GBase UDF；
+- 提供 `com.teradata.jni.udf.CptUdf` 字节级参考实现，覆盖 BINARY 列、VARCHAR+Base64、多区间策略子段加密；
+- 旧的 `containCn=true` legacy String API 已标 `@Deprecated`，避免在 UTF-8 列里误用；
 - Linux AMD64 下可通过 Maven 或 Makefile 一次完成 C、JNI 和 Java 联合构建与测试。
 
 ## 项目结构
@@ -215,6 +218,234 @@ byte[] decrypted = CptJni.multiSubPolicyDecrypt(
 输出：foxmind_8847_text_125
 ```
 
+### UTF-8 友好的 String / Base64 入口
+
+```java
+import com.teradata.jni.CptJni;
+import com.teradata.jni.CptMode;
+
+// 推荐 1：明确以 UTF-8 字节流进，等长密文直接拿到 byte[]
+byte[] cipher = CptJni.encryptAsUtf8Bytes("张三李四", 123L, CptMode.CHAR);
+
+// 推荐 2：直接拿到 Base64 编码的密文 String（写到 VARCHAR 列绝对安全）
+String cipherBase64 = CptJni.encryptUtf8("张三李四", 123L, CptMode.CHAR);  // 见 CptUdf.encryptAsBase64
+```
+
+> `encryptAsUtf8Bytes` / `encryptUtf8` 是 UTF-8 列环境下的**唯一**正确入口。
+> 不要在 UTF-8 列里使用 legacy `encrypt(String, ..., containCn=true)`，那条路径会把字符串
+> 按 UTF-16BE 编码再走 ISO-8859-1 回装，密文里会带 BOM 和大量 `0x00`，写到 UTF-8 VARCHAR
+> 列时会被 UTF-8 校验器替换或丢弃，导致解密失败。详见 `docs/woolly-swimming-duckling.md`。
+
+## 对外发布与 UDF 接入
+
+`com.teradata.jni.udf.CptUdf` 是面向 Hive / Doris / GBase 的字节级参考实现类。
+本 SDK **不直接绑定任何平台的 UDF SDK**，平台适配层只需几行就能把 `CptUdf`
+包装成对应平台的 UDF。
+
+### 一、打包产物
+
+`make package` 之后：
+
+```shell
+ls -la target/TeradataCpt-1.0-SNAPSHOT.jar
+```
+
+JAR 内部结构：
+
+```text
+META-INF/
+├── MANIFEST.MF
+└── maven/...
+com/
+└── teradata/
+    └── jni/
+        ├── CptJni.class
+        ├── CptMode.class
+        ├── Policy.class
+        ├── SubPolicy.class
+        └── udf/
+            └── CptUdf.class
+libTeradataCptJniAmd64.so    # Linux x86_64
+libTeradataCptJniArm64.so    # Linux aarch64
+libTeradataCptJni.dll        # Windows
+```
+
+JAR 内置三平台动态库；Java 端 `CptJni` 的静态初始化块会按 `os.name` / `os.arch`
+选择对应资源并通过 `System.load` 加载，**一个 JAR 即可跨平台分发**。
+
+### 二、UDF 接入推荐写法
+
+**核心原则**：
+
+1. 加密前后字节数严格相等（CPT 算法契约）；
+2. **永远不要**在 UDF 适配层做 String ↔ 字节的二次转换；
+3. 根据下游列类型选存储方案：
+   - `BINARY` / `VARBINARY` 列：直接写密文字节，最省空间；
+   - `VARCHAR(utf8)` 列 + `DIGIT` / `VISIBLE_ASCII` 模式：密文含原 UTF-8 中文，可直接写；
+   - `VARCHAR(utf8)` 列 + `CHAR` 模式：必须先 Base64 编码再写。
+
+**`CptUdf` 暴露的字节级 API**（UDF 内核，跨平台一致）：
+
+| 方法 | 入参 | 返回 | 用途 |
+| --- | --- | --- | --- |
+| `encryptUtf8Field` | `byte[] utf8Bytes, long key, CptMode` | `byte[]`（等长密文） | 写到 BINARY 列 |
+| `decryptUtf8Field` | `byte[] cipherBytes, long key, CptMode` | `byte[]`（原文 UTF-8 字节） | 从 BINARY 列读回 |
+| `encryptAsBytes` / `decryptAsBytes` | 同上 + `Policy` | `byte[]` | 多区间策略 |
+| `encryptAsBase64` | `String utf8Text, long key, CptMode` | `String`（Base64） | 写到 VARCHAR 列 |
+| `decryptFromBase64` | `String base64Cipher, long key, CptMode` | `String`（原文） | 从 VARCHAR 列读回 |
+| `utf8ByteRange` | `String, prefix, suffix` | `int[]{position, length}` | 计算中文子段字节区间 |
+
+### 三、Hive UDF 适配示例
+
+新建 Hive 侧项目，依赖 `TeradataCpt-1.0-SNAPSHOT.jar`：
+
+```java
+package com.example.hive.udf;
+
+import com.teradata.jni.CptMode;
+import com.teradata.jni.udf.CptUdf;
+import org.apache.hadoop.hive.ql.exec.UDF;
+import org.apache.hadoop.io.BytesWritable;
+import org.apache.hadoop.io.Text;
+
+public class CptHiveEncrypt extends UDF {
+
+    // 写入 BINARY 列：等长，无编码风险
+    public BytesWritable evaluate(Text input, long key) {
+        if (input == null) return null;
+        byte[] out = CptUdf.encryptUtf8Field(input.getBytes(), key, CptMode.CHAR);
+        return new BytesWritable(out);
+    }
+
+    // 写入 VARCHAR 列：CHAR 模式 + Base64 包装
+    public Text evaluate(Text input, long key, String modeName, String outputKind) {
+        if (input == null) return null;
+        CptMode mode = CptMode.valueOf(modeName);
+        byte[] out = CptUdf.encryptUtf8Field(input.getBytes(), key, mode);
+        if ("base64".equalsIgnoreCase(outputKind)) {
+            return new Text(java.util.Base64.getEncoder().encodeToString(out));
+        }
+        // "raw"：DIGIT / VISIBLE_ASCII 模式 + VARCHAR 列
+        return new Text(out);
+    }
+}
+```
+
+在 Hive 中注册并使用：
+
+```sql
+-- 上传 JAR 到 HDFS
+ADD JAR hdfs:///udf/jars/TeradataCpt-1.0-SNAPSHOT.jar;
+ADD JAR hdfs:///udf/jars/cpt-hive-udf-1.0.jar;
+
+CREATE TEMPORARY FUNCTION cpt_encrypt AS 'com.example.hive.udf.CptHiveEncrypt';
+
+-- 写 BINARY 列
+INSERT INTO target_table
+SELECT
+    cpt_encrypt(name, 123L)              AS name_cipher,
+    ...
+FROM source_table;
+
+-- 写 VARCHAR 列：CHAR 模式 + Base64
+INSERT INTO target_table
+SELECT
+    cpt_encrypt(name, 123L, 'CHAR', 'base64') AS name_cipher,
+    ...
+FROM source_table;
+```
+
+### 四、Doris / StarRocks UDF 适配示例
+
+```java
+package com.example.doris.udf;
+
+import com.teradata.jni.CptMode;
+import com.teradata.jni.udf.CptUdf;
+
+import java.nio.charset.StandardCharsets;
+
+public class CptDorisEncrypt {
+
+    // Doris Java UDF：静态方法，签名是 evaluate(...)
+    public String evaluate(String input, Long key, String modeName) {
+        if (input == null) return null;
+        CptMode mode = CptMode.valueOf(modeName);
+        byte[] in = input.getBytes(StandardCharsets.UTF_8);
+        byte[] out = CptUdf.encryptAsBytes(in, key, mode);
+
+        // CHAR 模式密文必须 Base64 包装才能安全写到 VARCHAR(utf8)
+        if (mode == CptMode.CHAR) {
+            return java.util.Base64.getEncoder().encodeToString(out);
+        }
+        // DIGIT / VISIBLE_ASCII：密文是合法 UTF-8 字节流，可直接返回
+        return new String(out, StandardCharsets.ISO_8859_1);
+    }
+}
+```
+
+Doris 注册：
+
+```sql
+CREATE FUNCTION cpt_encrypt(VARCHAR, BIGINT, VARCHAR)
+    RETURNS STRING
+    PROPERTIES (
+        "file" = "http://host/jars/cpt-doris-udf-1.0.jar",
+        "symbol" = "com.example.doris.udf.CptDorisEncrypt",
+        "type" = "JAVA_UDF"
+    );
+```
+
+### 五、GBase UDF 适配示例
+
+GBase 8s/8a 的 Java UDF 模型与 Hive 类似（继承框架 UDF 类），同样依赖 SDK JAR，参考 Hive 示例即可。
+
+### 六、UDF 端到端测试模式
+
+`src/test/java/com/teradata/jni/udf/CptUdfStorageTest.java` 已经覆盖下列断言，
+**`make test` 必须保持全绿**：
+
+| 断言 | 含义 |
+| --- | --- |
+| `CHAR 模式密文经 UTF-8 往返后必然变化` | CHAR 模式**不能**直接写 VARCHAR 列 |
+| `CHAR 模式密文 BINARY 往返后字节完全一致` | CHAR 模式可以无损写 BINARY 列 |
+| `DIGIT 模式 UTF-8 VARCHAR 往返后字节完全一致` | DIGIT 模式可直接写 VARCHAR 列 |
+| `VISIBLE_ASCII 模式 UTF-8 VARCHAR 往返后字节完全一致` | VISIBLE_ASCII 模式可直接写 VARCHAR 列 |
+| `Base64 解码字节 = 直接加密字节` | Base64 包装层零误差 |
+| `legacy containCn=true 密文经 UTF-8 往返必然变化` | 防止用户误用 legacy API |
+
+任何新增 UDF 适配类应当复用上述断言做一次端到端验证：把 UDF 返回值当作"已加密的字节流"，经过 `new String(bytes, UTF_8)` ↔ `getBytes(UTF_8)` 往返后，再调 `CptUdf.decryptUtf8Field` 必须能还原原文。
+
+### 七、跨平台发布前的额外校验
+
+当前仓库 `src/main/resources/` 内置三个平台二进制，但只有 Linux AMD64 是当前 C 源码构建出来的。
+ARM64 / Windows 二进制应在对应平台用同份 C 源码重新构建后再发布：
+
+```shell
+# Linux AMD64（已自动化）
+cmake -S native -B target/native && cmake --build target/native
+cp target/native/libTeradataCptJni.so src/main/resources/libTeradataCptJniAmd64.so
+
+# Linux ARM64（在 ARM64 机器上或交叉编译）
+cmake -S native -B target/native-arm64
+cmake --build target/native-arm64
+cp target/native-arm64/libTeradataCptJni.so src/main/resources/libTeradataCptJniArm64.so
+
+# Windows（MSYS2 / Visual Studio + CMake）
+cmake -S native -B target/native-win -G "Visual Studio 17 2022" -A x64
+cmake --build target/native-win --config Release
+cp target/native-win/Release/TeradataCptJni.dll src/main/resources/libTeradataCptJni.dll
+```
+
+发布前比对动态库 SHA-256，确保 JAR 里的就是当前 C 源码构建出来的：
+
+```shell
+sha256sum target/native/libTeradataCptJni.so \
+          src/main/resources/libTeradataCptJniAmd64.so
+```
+
+两端哈希必须一致，否则发布出去的 JAR 会带旧二进制。
+
 ## 策略与编码约定
 
 `SubPolicy.position` 和 `SubPolicy.length` 都是字节单位：
@@ -272,6 +503,9 @@ Java SDK 会根据操作系统和 CPU 架构加载 JAR 中的对应资源：
 - Windows：`libTeradataCptJni.dll`
 
 加载失败会在类初始化阶段抛出 `ExceptionInInitializerError`，避免延迟到 native 方法调用时才暴露问题。
+
+JAR 内置动态库的设计支持一个 JAR 跨平台分发。UDF 接入、跨平台发布前 SHA-256 校验等
+步骤详见后文[「对外发布与 UDF 接入」](#对外发布与-udf-接入)章节。
 
 ## JNI 头文件
 
