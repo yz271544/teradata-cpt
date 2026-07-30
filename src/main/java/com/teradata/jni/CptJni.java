@@ -28,6 +28,20 @@ public class CptJni {
     public CptJni() {
     }
 
+    /**
+     * 已废弃：legacy String API。
+     *
+     * <p>当 {@code containCn=true} 时，本方法将输入按 UTF-16BE 取字节（含 BOM 与大量 0x00），
+     * 再用 ISO-8859-1 把密文回装为 String。这条路径仅适用于"把中文字符按双字节编码"的旧存储场景
+     * （例如老 Teradata/GBK 流水线）。在 UTF-8 字符集的 Hive/Doris/GBase 列里使用会由于
+     * UTF-8 校验失败而导致密文被替换为 {@code ?}、解密无法还原。
+     *
+     * <p>新代码请使用 {@link #encryptUtf8(String, long, CptMode)} 或直接调用
+     * {@link #encrypt(byte[], long, CptMode)} 字节级 API。
+     *
+     * @param containCn true 走 UTF-16 路径（不推荐），false 走 ISO-8859-1 路径（仅限纯 ASCII 字段）
+     */
+    @Deprecated
     public static String encrypt(String s, long key, byte mod, boolean containCn)
             throws UnsupportedEncodingException {
         if (containCn) {
@@ -37,12 +51,83 @@ public class CptJni {
         }
     }
 
+    /**
+     * 已废弃：legacy String API。语义与 {@link #encrypt(String, long, byte, boolean)} 对称。
+     * 新代码请使用 {@link #decryptUtf8(String, long, CptMode)}。
+     */
+    @Deprecated
     public static String decrypt(String s, long key, byte mod, boolean containCn)
             throws UnsupportedEncodingException {
         if (containCn) {
             return new String(decrypt(s.getBytes(StandardCharsets.ISO_8859_1), key, mod), StandardCharsets.UTF_16);
         } else {
             return new String(decrypt(s.getBytes(StandardCharsets.ISO_8859_1), key, mod), StandardCharsets.ISO_8859_1);
+        }
+    }
+
+    /**
+     * UTF-8 友好的加密入口（推荐用于 UTF-8 字符集的 Hive/Doris/GBase 列）。
+     *
+     * <p>等价于：
+     * <pre>{@code
+     *   byte[] in = s.getBytes(StandardCharsets.UTF_8);
+     *   byte[] out = encrypt(in, key, mode);
+     *   // 密文直接以字节写回 VARCHAR/BINARY 列，不再做 String 二次编码
+     * }</pre>
+     *
+     * <p>返回值仍是 Java String，但内容是"密文 UTF-8 字节按 ISO-8859-1 回装"。
+     * 这种做法只在你必须以 Java String 类型把密文传回 UDF 框架时使用；
+     * 写入列时应当用 {@link #encryptAsUtf8Bytes(String, long, CptMode)} 拿到字节再写入，
+     * 避免任何中间环节的字符集往返。
+     *
+     * @see #encryptAsUtf8Bytes(String, long, CptMode)
+     */
+    public static String encryptUtf8(String s, long key, CptMode mode) {
+        requireStringAndMode(s, mode);
+        byte[] in = s.getBytes(StandardCharsets.UTF_8);
+        byte[] out = encrypt(in, key, mode);
+        return new String(out, StandardCharsets.ISO_8859_1);
+    }
+
+    /**
+     * {@link #encryptUtf8(String, long, CptMode)} 的解密对称操作。
+     */
+    public static String decryptUtf8(String s, long key, CptMode mode) {
+        requireStringAndMode(s, mode);
+        byte[] in = s.getBytes(StandardCharsets.ISO_8859_1);
+        byte[] out = decrypt(in, key, mode);
+        return new String(out, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * 输入字符串（按 UTF-8 解码），返回加密后的字节。写入 VARCHAR/BINARY 列前直接使用本返回值。
+     *
+     * <p>这是为 Hive/Doris/GBase UDF 推荐使用的入口：
+     * <ul>
+     *   <li>明文→UTF-8 字节→CHAR/DIGIT/VISIBLE_ASCII 加密→等长密文字节</li>
+     *   <li>密文字节可直接写入 BINARY/VARBINARY 列</li>
+     *   <li>或经 Base64/Hex 编码后再写入 VARCHAR 列</li>
+     * </ul>
+     */
+    public static byte[] encryptAsUtf8Bytes(String s, long key, CptMode mode) {
+        requireStringAndMode(s, mode);
+        return encrypt(s.getBytes(StandardCharsets.UTF_8), key, mode);
+    }
+
+    /**
+     * {@link #encryptAsUtf8Bytes(String, long, CptMode)} 的对称操作：密文字节→UTF-8 原文。
+     */
+    public static byte[] decryptToUtf8Bytes(String s, long key, CptMode mode) {
+        requireStringAndMode(s, mode);
+        return decrypt(s.getBytes(StandardCharsets.ISO_8859_1), key, mode);
+    }
+
+    private static void requireStringAndMode(String s, CptMode mode) {
+        if (s == null) {
+            throw new IllegalArgumentException("input string must not be null");
+        }
+        if (mode == null) {
+            throw new IllegalArgumentException("mode must not be null");
         }
     }
 
@@ -61,6 +146,12 @@ public class CptJni {
     }
 
 
+    /**
+     * 已废弃：legacy String API（多区间策略）。仅限"双字节编码"旧存储场景，
+     * 不适用于 UTF-8 字符集的 Hive/Doris/GBase 列。新代码请使用
+     * {@link #multiSubPolicyEncrypt(byte[], Policy, long, CptMode)} 字节级重载。
+     */
+    @Deprecated
     public static String multiSubPolicyEncrypt(String s, Policy policy, long key, byte mod, boolean containCn)
             throws UnsupportedEncodingException {
         if (containCn) {
@@ -70,6 +161,11 @@ public class CptJni {
         }
     }
 
+    /**
+     * 已废弃：legacy String API（多区间策略解密）。与
+     * {@link #multiSubPolicyEncrypt(String, Policy, long, byte, boolean)} 对称。
+     */
+    @Deprecated
     public static String multiSubPolicyDecrypt(String s, Policy policy, long key, byte mod, boolean containCn)
             throws UnsupportedEncodingException {
         if (containCn) {
